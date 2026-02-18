@@ -1,12 +1,12 @@
 # Allihoopa Mixtape Archive Tool
 
-A small CLI tool to **clean up and preserve** an exported *Allihoopa “Mixtape”* archive.
+A small CLI tool to clean up and preserve an exported *Allihoopa “Mixtape”* archive.
 
 It can:
 
-- **Rename** audio and cover files based on export metadata.
+- **Rename** audio/cover/attachment files based on export metadata.
 - **Generate sidecar metadata files** per piece folder: `Username - Title.meta.json`
-- **Embed tags + cover art into MP4/M4A** where possible, and store the *full per-piece JSON* inside the file as a custom MP4 tag field (`alltihop_json`).
+- **Embed tags + cover art into MP4/M4A** where possible, and store the full per-piece JSON inside the file as a custom MP4 tag field (`alltihop_json`).
 
 ## What was Allihoopa?
 
@@ -19,7 +19,7 @@ This tool is meant to make those Mixtape exports easier to manage long-term.
 
 After renaming, each piece folder will look like:
 
-- `Username - Title.mp4`
+- `Username - Title.mp4` (or `.m4a/.aac` if the export contains those)
 - `Username - Title.cover.jpg` (or `.png/.jpeg`)
 - `Username - Title.meta.json`
 
@@ -46,6 +46,21 @@ Default expected structure (typical Mixtape export):
 
 You can override paths via CLI options.
 
+## Help
+
+Top-level help:
+
+```bash
+python3 allihoopa_tool.py -h
+```
+
+Per-command help:
+
+```bash
+python3 allihoopa_tool.py rename -h
+python3 allihoopa_tool.py tag -h
+```
+
 ## Important CLI rule (argparse subcommands)
 
 Global options must be placed **before** the subcommand:
@@ -63,13 +78,6 @@ python3 allihoopa_tool.py --root ./my_export tag --apply
 python3 allihoopa_tool.py rename --root ./my_export --apply
 ```
 
-More help:
-
-```bash
-python3 allihoopa_tool.py rename -h
-python3 allihoopa_tool.py tag -h
-```
-
 ## Rename (dry-run first)
 
 Preview what would change:
@@ -84,20 +92,32 @@ Apply renames:
 python3 allihoopa_tool.py --root <EXPORT_ROOT> rename --apply
 ```
 
-### Compatibility mode: keep legacy names
+### Keeping legacy names: link vs copy
 
-The original mixtape html/js page expects `audio.mp4` / `cover.jpg` in each piece folder.  
-Use `--keep-compat` to keep those legacy names as links pointing to the renamed files:
+Some older tooling expects legacy names like `audio.mp4` / `cover.jpg` in each piece folder.
+You can keep those legacy names *in addition* to the renamed files in one of two ways:
+
+**A) Keep legacy names as links**
 
 ```bash
-python3 allihoopa_tool.py --root <EXPORT_ROOT> rename --apply --keep-compat
+python3 allihoopa_tool.py --root <EXPORT_ROOT> rename --apply --keep-link
 ```
 
 Notes:
-
-- The tool tries to create **hardlinks** first, then **symlinks** as fallback.
-- Link behavior depends on filesystem and permissions (especially on Windows).
+- The tool tries to create **hardlinks** first, then **symlinks** as a fallback.
+- Link behavior depends on filesystem and permissions.
 - Some ZIP tools / cloud sync services may not preserve symlinks.
+
+**B) Keep legacy names as copies**
+
+```bash
+python3 allihoopa_tool.py --root <EXPORT_ROOT> rename --apply --keep-copy
+```
+
+Notes:
+- Copies are larger (extra disk usage), but portable and ZIP-friendly.
+
+`--keep-link` and `--keep-copy` are mutually exclusive.
 
 ### Undo renames
 
@@ -112,6 +132,10 @@ Preview undo:
 ```bash
 python3 allihoopa_tool.py --root <EXPORT_ROOT> rename --undo --dry-run
 ```
+
+Undo behavior:
+- The renamed file (`dst` in the log) is treated as authoritative.
+- Any legacy/compat file at the original path is deleted (if present), then `dst` is renamed back.
 
 ## Tagging + sidecar metadata
 
@@ -159,6 +183,15 @@ If your own username appears in `collaborators`, it is removed from that list to
 
 # Installation
 
+> [!TIP]
+> ### Consider working in a virtual environment
+> ```bash
+> python3 -m venv .venv
+> source .venv/bin/activate
+> ```
+>
+> Learn more: [Python Virtual Environment](https://www.w3schools.com/python/python_virtualenv.asp)
+
 ## Requirements
 
 - Python 3.9+ recommended
@@ -169,29 +202,15 @@ If your own username appears in `collaborators`, it is removed from that list to
 - `rename` works without extra packages
 - `tag` requires **mutagen** (MP4/M4A tagging + cover embedding)
 
-Install dependencies:
+Install mutagen:
 
 ```bash
 python -m pip install mutagen
 ```
 
-> Tip: run `tag` once in dry-run mode. The tool can warn you if `mutagen` is missing.
+Tip: run `tag` once in dry-run mode. The tool can warn you if `mutagen` is missing.
 
-## Optional: virtual environment
 
-Linux/macOS:
-
-```bash
-python3 -m venv .venv
-source .venv/bin/activate
-```
-
-Windows (PowerShell):
-
-```powershell
-py -3 -m venv .venv
-.\.venv\Scripts\Activate.ps1
-```
 
 ---
 
@@ -202,12 +221,4 @@ py -3 -m venv .venv
 - Most players show Title/Artist/Comment/Artwork.
 - The custom JSON field (`alltihop_json`) is primarily for archival/tooling. Many players will not display it, but it stays embedded in the file.
 
-## Windows “double click” vs terminal
-
-Do not start the script by double-clicking the `.py` file (the window may close immediately).  
-Run it from a terminal instead:
-
-```powershell
-py -3 .\allihoopa_tool.py --root .\<EXPORT_ROOT> rename --apply
-```
-
+---
