@@ -181,7 +181,7 @@ class RenameOp:
             "title": self.title,
             "src": str(self.src),
             "dst": str(self.dst),
-            "keep_link": self.keep_mode,
+            "keep_mode": self.keep_mode,
         }
 
 
@@ -274,7 +274,7 @@ def apply_rename_ops(ops: List[RenameOp], log_path: Path, dry_run: bool) -> None
             elif op.keep_mode == "copy":
                 print(f"             keep: would keep '{op.src.name}' as a copy of '{op.dst.name}'")
                 
-            print("(No changes made. Use --apply to execute.)")                
+        print("(No changes made. Use --apply to execute.)")                
         return
 
     with log_path.open("a", encoding="utf-8") as f:
@@ -299,12 +299,6 @@ def apply_rename_ops(ops: List[RenameOp], log_path: Path, dry_run: bool) -> None
                     ensure_compat_copy(old_path, new_path)
                 except Exception as e:
                     print(f"  WARN keep copy failed for {old_path.name}: {e}")
-
-            if op.keep_link:
-                try:
-                    ensure_compat_link(old_path, new_path)
-                except Exception as e:
-                    print(f"  WARN compat link failed for {old_path.name}: {e}")
 
             f.write(json.dumps(op.to_json(), ensure_ascii=False) + "\n")
             f.flush()
@@ -738,7 +732,7 @@ def main() -> int:
             pieces_dir,
             username=username,
             preserve_blanks=args.preserve_blanks,
-            keep_mode=args.keep_mode,
+            keep_mode=keep_mode,
         )
 
         for w in warnings:
